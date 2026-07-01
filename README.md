@@ -1,76 +1,130 @@
-# One way publishing of your blog posts from a git repo to dev.to
+# dev.to markdown publishing plan
 
-This repo is just a template to help you get started quickly. If you're looking for an example of a repo using it, have a look here: https://github.com/maxime1992/my-dev.to
+This repository is currently a planning document for a future workflow that keeps dev.to articles in git and syncs changed Markdown files to dev.to after they are merged to `main`.
 
-## First, what is dev.to?
+No publishing code, GitHub Action, or dev.to API client has been chosen yet.
 
-https://dev.to is a free and open source blogging platform for developers.
+## Goals
 
-> dev.to (or just DEV) is a platform where software developers write articles, take part in discussions, and build their professional profiles. We value supportive and constructive dialogue in the pursuit of great code and career growth for all members. The ecosystem spans from beginner to advanced developers, and all are welcome to find their place within our community.
+- Store each article as a Markdown file in this repository.
+- Treat the repository as the source of truth for article content and editable metadata.
+- On merge to `main`, sync only the articles changed by that merge to dev.to.
+- Support creating new dev.to articles and updating existing ones.
+- Keep the design compatible with the current Forem/dev.to API while avoiding a design that depends on deprecated behavior.
 
-## Why would I want to put all my blog posts on a git repo?
+## Proposed repository shape
 
-- Don't be afraid to mess up with one of your articles while editing it
-- Same good practices as when you're developing (format, commits, saving history, compare, etc)
-- Use prettier to format the markdown and all the code
-- Let people contribute to your article by creating a PR against it (tired of comments going sideways because of some typos? Just let people know they can make a PR at the end of your blog post)
-- Create code examples close to your blog post and make sure they're correct thanks to [Embedme](https://github.com/zakhenry/embedme) (_\*1_)
-
-_\*1: Embedme allows you to write code in actual files rather than your readme, and then from your Readme to make sure that your examples are matching those files._
-
-If you prefer not to use Prettier or Embed me, you can do so by simply removing them but I think it's a nice thing to have!
-
-## How do I choose which files I want to publish?
-
-There's a `dev-to-git.json` file where you can define an array of blog posts, e.g.
-
-```json
-[
-  {
-    "id": 12345,
-    "relativePathToArticle": "./blog-posts/name-of-your-blog-post/name-of-your-blog-post.md"
-  }
-]
+```text
+articles/
+  my-article/
+    article.md
+    assets/
+      cover.png
+devto/
+  articles.json
 ```
 
-## How can I find the ID of my blog post on dev.to?
+- `articles/**/article.md` contains the article body and author-facing metadata.
+- `articles/**/assets/` contains images referenced by the article.
+- `devto/articles.json` maps stable local article keys to remote dev.to article IDs and other sync state that should not be hand-edited during normal writing.
 
-This repository is made to **edit** a blog post. Whether it's published or just a draft, you **have to create it** on dev.to directly. Unfortunately, dev.to does not display the ID of the blog post on the page. So once it's created, you can open your browser console and paste the following code to retrieve the blog post ID:  
-`$('div[data-article-id]').getAttribute('data-article-id')`
+## Metadata approach
 
-## How do I configure every blog post individually?
+Use YAML frontmatter in each Markdown file as the authoring format, but do not couple the sync implementation to the v0 API's frontmatter behavior.
 
-A blog post has to have a [**front matter**](https://dev.to/p/editor_guide) header. You can find an example in this repository here: https://github.com/maxime1992/dev.to/blob/master/blog-posts/name-of-your-blog-post/name-of-your-blog-post.md
+Example:
 
-Simple and from there you have control over the following properties: `title`, `published`, `cover_image`, `description`, `tags`, `series` and `canonical_url`.
+```markdown
+---
+devto_key: architecture-vs-simplicity
+title: Architecture vs simplicity
+published: false
+description: A short summary for dev.to
+tags:
+  - architecture
+  - software
+canonical_url:
+cover_image:
+series:
+---
 
-## How do I add images to my blog posts?
+Article body starts here.
+```
 
-Instead of uploading them manually on dev.to, simply put them within your git repo and within the blog post use a relative link. Here's an example: `The following is an image: ![alt text](./assets/image.png 'Title image')`.
+The future sync tool should parse this frontmatter itself and translate it into the request body expected by the selected API version. This keeps the writing experience convenient while leaving room to use v1 if v0 frontmatter publishing becomes undesirable or unsupported.
 
-If you've got some plugin to preview your markdown from your IDE, the images will be correctly displayed. Then, on CI, right before they're published, the link will be updated to match the raw file.
+## API version tradeoff
 
-## How to setup CI for auto deploying the blog posts?
+### v0 convenience
 
-If you want to use Github and Github Actions, a `.github/workflows/main.yml` file has been already prepared for you.
+- v0 can accept Markdown with frontmatter-style metadata.
+- This is convenient because the article body and metadata can be submitted together.
+- The risk is coupling the project to behavior that may be older or less future-proof.
 
-- Copy this template to your own Github account by clicking "Use this template"
-- Open up this URL with your own username and repo name of the one you just created using the template: `https://github.com/your-username/your-repo-name/settings/secrets/actions`
-- On the default "Secrets" tab, click on the "New repository secret"
-- In the secret name, write `DEV_TO_GIT_TOKEN`
-- Open up a new tab and go to this URL https://dev.to/settings/extensions. Scroll up to "DEV Community API Keys" and generate a new key. Copy it
-- Go back to the Github tab and paste the key you just copied into the secret input
+### v1 future-proofness
 
-Enjoy.
+- v1 appears to prefer explicit API fields instead of relying on frontmatter.
+- This is a better long-term boundary: repository Markdown is our authoring format, and API JSON is the transport format.
+- The sync tool has to do slightly more work by parsing frontmatter and building the API payload.
 
-## README template
+### Recommendation
 
-The following is simply a template that you may want to use for your own version of that repository.
+Author with frontmatter, but implement the sync tool as an adapter:
 
-# \<YOUR NAME\>'s blog source
+1. Parse Markdown into an internal article model.
+2. Convert that model to the selected dev.to API request.
+3. Keep API-version-specific behavior isolated behind a small client boundary.
 
-https://dev.to/\<YOUR DEV.TO NICKNAME\>
+This gives writers the convenience of frontmatter without making the repository format depend on v0.
 
-## Blog posts
+## Mapping Markdown files to dev.to articles
 
-- [\<BLOG POST NAME\>](https://dev.to/\<BLOG POST LINK\>)
+The sync tool needs a stable identity that survives file moves and title changes.
+
+Recommended mapping:
+
+1. Each article frontmatter includes a required `devto_key`.
+2. `devto/articles.json` maps `devto_key` to the remote dev.to article ID.
+3. New articles have a `devto_key` but no remote ID yet.
+4. After creating a new article through the API, the sync tool records the new remote ID in `devto/articles.json`.
+
+Example mapping file:
+
+```json
+{
+  "architecture-vs-simplicity": {
+    "devto_id": 1234567,
+    "source": "articles/architecture-vs-simplicity/article.md"
+  }
+}
+```
+
+Why this shape:
+
+- The key is stable across path changes.
+- The remote dev.to ID is kept out of the article content.
+- The mapping can be reviewed in git.
+- The sync tool can detect accidental key reuse before publishing.
+
+Path-only mapping is simpler, but it breaks down when files are renamed. Looking up articles remotely by title, slug, or canonical URL is not reliable enough because those values can change and may not be unique.
+
+## Merge-to-main sync flow
+
+1. A pull request changes one or more `articles/**/*.md` files.
+2. After the PR is merged, a GitHub Action on `main` computes the changed Markdown files for the merge.
+3. For each changed file, the sync tool:
+   - parses the Markdown and frontmatter,
+   - validates required metadata,
+   - reads `devto_key`,
+   - looks up the remote article ID in `devto/articles.json`,
+   - creates the article if there is no remote ID,
+   - updates the article if a remote ID exists,
+   - updates `devto/articles.json` if a new remote ID was created.
+4. The workflow fails loudly if metadata is invalid or a mapping is ambiguous.
+
+## Open design questions
+
+- Should new articles be created as drafts by default even when frontmatter says `published: true`?
+- Should the workflow commit `devto/articles.json` updates back to `main`, or should new article creation require a separate manual bootstrap step?
+- Should asset uploads be handled by the tool, or should image URLs point to raw GitHub-hosted files?
+- Should deleted Markdown files ever unpublish dev.to articles, or should remote deletion always be manual?
