@@ -1,8 +1,6 @@
 # dev.to markdown publishing plan
 
-This repository is currently a planning document for a future workflow that keeps dev.to articles in git and syncs changed Markdown files to dev.to after they are merged to `main`.
-
-No publishing code, GitHub Action, or dev.to API client has been chosen yet.
+This repository keeps dev.to articles in git and provides small Python scripts for creating local article files, creating dev.to drafts, and updating existing dev.to articles from Markdown.
 
 ## Goals
 
@@ -25,6 +23,7 @@ articles/
 devto/
   articles.json
 scripts/
+  devto_common.py
   devto_scaffold.py
   devto_create_draft.py
   devto_put_article.py
@@ -34,6 +33,40 @@ scripts/
 - `articles/**/assets/` contains images referenced by the article.
 - `devto/articles.json` stores article metadata, source paths, remote dev.to article IDs, and other sync state.
 - `scripts/*.py` contains small typed Python entrypoints for local and CI use.
+
+## Script usage
+
+The scripts use only the Python standard library and should be run from the repository root.
+
+### Scaffold a local article
+
+```sh
+python3 scripts/devto_scaffold.py architecture-vs-simplicity \
+  --title "Architecture vs simplicity" \
+  --description "A short summary for dev.to" \
+  --tag architecture \
+  --tag software
+```
+
+This creates `articles/architecture-vs-simplicity/article.md` and adds a draft metadata entry to `devto/articles.json`. The script refuses to overwrite an existing article key or article file.
+
+### Create a dev.to draft
+
+```sh
+DEVTO_API_KEY=... python3 scripts/devto_create_draft.py architecture-vs-simplicity
+```
+
+This reads the local Markdown body and metadata, posts a draft to `https://dev.to/api/articles`, and stores the returned `devto_id` in `devto/articles.json`. It refuses to create a second remote article when `devto_id` is already present.
+
+### Update an existing dev.to article
+
+```sh
+DEVTO_API_KEY=... python3 scripts/devto_put_article.py architecture-vs-simplicity
+```
+
+This requires an existing `devto_id`, reads the local Markdown body and metadata, and sends a `PUT` request to `https://dev.to/api/articles/<devto_id>`.
+
+All API scripts read the API key from `DEVTO_API_KEY` by default. Use `--api-key-env` or `--api-base-url` when a different environment variable or API host is needed.
 
 ## Metadata approach
 
@@ -92,7 +125,7 @@ This gives up the convenience of colocated frontmatter, but it keeps the project
 
 ## Tooling approach
 
-Implement the workflow as small Python scripts using only the Python standard library. Each script should do one job, accept explicit command-line arguments, read and write plain files, and print useful output for shell pipelines.
+The workflow is implemented as small Python scripts using only the Python standard library. Each script does one job, accepts explicit command-line arguments, reads and writes plain files, and prints useful output for shell pipelines.
 
 Principles:
 
@@ -103,7 +136,7 @@ Principles:
 - Make CI call the same scripts that can be run locally.
 - Fail with non-zero exits and clear stderr messages when validation or API calls fail.
 
-Recommended scripts:
+Available scripts:
 
 - `scripts/devto_scaffold.py`: add a new local article entry and create its Markdown file.
 - `scripts/devto_create_draft.py`: create a draft article on dev.to for an existing local entry and store the returned `devto_id`.
