@@ -8,10 +8,8 @@ from urllib.parse import urlencode
 
 from devto_common import (
     JsonObject,
-    article_endpoint,
     fail,
     load_metadata,
-    request_json,
     request_json_value,
     require_api_key,
     save_metadata,
@@ -20,7 +18,6 @@ from devto_common import (
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Import existing dev.to articles into the local repository.")
-    parser.add_argument("--id", type=int, dest="article_id", help="import a single dev.to article ID")
     parser.add_argument("--force", action="store_true", help="overwrite existing local article files and metadata")
     parser.add_argument("--metadata", type=Path, default=Path("devto/articles.json"), help="metadata JSON path")
     parser.add_argument("--articles-dir", type=Path, default=Path("articles"), help="directory for article folders")
@@ -68,27 +65,23 @@ def user_articles_endpoint(api_base_url: str, page: int, per_page: int) -> str:
     return f"{base}/articles/me/all?{urlencode({'page': page, 'per_page': per_page})}"
 
 
-def fetch_article(api_base_url: str, api_key: str, article_id: int) -> JsonObject:
-    return request_json("GET", article_endpoint(api_base_url, article_id), api_key)
-
-
-def fetch_article_ids(api_base_url: str, api_key: str, per_page: int) -> list[int]:
-    article_ids: list[int] = []
+def fetch_articles(api_base_url: str, api_key: str, per_page: int) -> list[JsonObject]:
+    articles: list[JsonObject] = []
     page = 1
     while True:
         data = request_json_value("GET", user_articles_endpoint(api_base_url, page, per_page), api_key)
         if not isinstance(data, list):
             fail("dev.to article list response was not an array")
         if not data:
-            return article_ids
+            return articles
 
         for item in data:
             if not isinstance(item, dict):
                 fail("dev.to article list response contained a non-object item")
-            article_ids.append(require_int(item, "id"))
+            articles.append(item)
 
         if len(data) < per_page:
-            return article_ids
+            return articles
         page += 1
 
 
@@ -130,15 +123,11 @@ def main() -> None:
     api_key = require_api_key(args.api_key_env)
     metadata = load_metadata(args.metadata)
 
-    if args.article_id is None:
-        article_ids = fetch_article_ids(args.api_base_url, api_key, args.per_page)
-    else:
-        article_ids = [args.article_id]
+    articles = fetch_articles(args.api_base_url, api_key, args.per_page)
 
     imported = 0
     skipped = 0
-    for article_id in article_ids:
-        article = fetch_article(args.api_base_url, api_key, article_id)
+    for article in articles:
         result = import_article(article, metadata, args.articles_dir, force=args.force)
         if result == "imported":
             imported += 1

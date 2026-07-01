@@ -57,7 +57,7 @@ This creates `articles/architecture-vs-simplicity/article.md` and adds a draft m
 DEVTO_API_KEY=... python3 scripts/devto_import_articles.py
 ```
 
-This imports all authenticated user's dev.to articles into `articles/<slug>/article.md` and `devto/articles.json`. Existing local articles are skipped by default. Use `--id <devto_id>` to import one article, or `--force` to overwrite existing local files and metadata entries.
+This imports all authenticated user's dev.to articles into `articles/<slug>/article.md` and `devto/articles.json`. Existing local articles are skipped by default. Use `--force` to overwrite existing local files and metadata entries.
 
 ### Create a dev.to draft
 
@@ -231,9 +231,8 @@ Run the create-draft script for an article key after local metadata exists. It s
 Run the import script when dev.to already has articles that should become local repository entries. It should:
 
 1. import all authenticated user's articles by default,
-2. support importing one article with `--id`,
-3. use the remote article slug as the local key and folder name,
-4. skip existing local articles unless `--force` is set.
+2. use the remote article slug as the local key and folder name,
+3. skip existing local articles unless `--force` is set.
 
 ### PUT an article
 
