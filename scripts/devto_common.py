@@ -7,14 +7,13 @@ import sys
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import Any
-
+from typing import Any, NoReturn
 
 JsonObject = dict[str, Any]
 Metadata = dict[str, JsonObject]
 
 
-def fail(message: str) -> None:
+def fail(message: str) -> NoReturn:
     print(message, file=sys.stderr)
     raise SystemExit(1)
 
