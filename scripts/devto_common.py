@@ -13,6 +13,7 @@ JsonObject = dict[str, Any]
 Metadata = dict[str, JsonObject]
 DOTENV_PATH = Path(".env")
 FOREM_API_ACCEPT = "application/vnd.forem.api-v1+json"
+USER_AGENT = "dev-to-markdown-sync/1.0"
 
 
 def fail(message: str) -> NoReturn:
@@ -137,6 +138,7 @@ def request_json(method: str, url: str, api_key: str, payload: JsonObject) -> Js
         headers={
             "Accept": FOREM_API_ACCEPT,
             "Content-Type": "application/json",
+            "User-Agent": USER_AGENT,
             "api-key": api_key,
         },
     )
@@ -146,7 +148,13 @@ def request_json(method: str, url: str, api_key: str, payload: JsonObject) -> Js
             response_body = response.read().decode("utf-8")
     except urllib.error.HTTPError as error:
         error_body = error.read().decode("utf-8", errors="replace")
-        fail(f"{method} {url} failed with HTTP {error.code}: {error_body}")
+        reason = getattr(error, "reason", None) or error.msg
+        message = f"{method} {url} failed with HTTP {error.code} {reason}"
+        if error_body:
+            message = f"{message}: {error_body}"
+        else:
+            message = f"{message} (empty response body)"
+        fail(message)
     except urllib.error.URLError as error:
         fail(f"{method} {url} failed: {error.reason}")
 

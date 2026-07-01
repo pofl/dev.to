@@ -49,6 +49,7 @@ def main() -> None:
     entry["devto_id"] = devto_id
     save_metadata(args.metadata, metadata)
     print(f"created dev.to draft for {args.key}: {devto_id}")
+    print(f"added article ID to article config: {args.metadata}")
 
 
 if __name__ == "__main__":
