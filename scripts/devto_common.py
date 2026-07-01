@@ -11,6 +11,8 @@ from typing import Any, NoReturn
 
 JsonObject = dict[str, Any]
 Metadata = dict[str, JsonObject]
+DOTENV_PATH = Path(".env")
+FOREM_API_ACCEPT = "application/vnd.forem.api-v1+json"
 
 
 def fail(message: str) -> NoReturn:
@@ -50,10 +52,35 @@ def require_entry(metadata: Metadata, key: str) -> JsonObject:
     return entry
 
 
+def parse_dotenv(path: Path) -> dict[str, str]:
+    if not path.exists():
+        return {}
+
+    values: dict[str, str] = {}
+    for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+
+        if stripped.startswith("export "):
+            stripped = stripped.removeprefix("export ").lstrip()
+
+        key, separator, value = stripped.partition("=")
+        key = key.strip()
+        if not separator or not key:
+            fail(f"{path}:{line_number}: expected KEY=value")
+
+        values[key] = value.strip().strip('"\'')
+
+    return values
+
+
 def require_api_key(env_name: str) -> str:
     api_key = os.environ.get(env_name)
     if not api_key:
-        fail(f"missing dev.to API key in ${env_name}")
+        api_key = parse_dotenv(DOTENV_PATH).get(env_name)
+    if not api_key:
+        fail(f"missing dev.to API key in ${env_name} or {DOTENV_PATH}")
     return api_key
 
 
@@ -79,18 +106,24 @@ def build_article_payload(entry: JsonObject, body_markdown: str, *, published: b
         "published": bool(entry.get("published", False)) if published is None else published,
     }
 
-    for field in ("description", "canonical_url", "cover_image", "series"):
+    for field in ("description", "canonical_url", "series"):
         value = entry.get(field)
         if value is not None:
             if not isinstance(value, str):
                 fail(f"metadata field must be a string or null: {field}")
             payload[field] = value
 
+    cover_image = entry.get("cover_image")
+    if cover_image is not None:
+        if not isinstance(cover_image, str):
+            fail("metadata field must be a string or null: cover_image")
+        payload["main_image"] = cover_image
+
     tags = entry.get("tags", [])
     if tags is not None:
         if not isinstance(tags, list) or not all(isinstance(tag, str) for tag in tags):
             fail("metadata field must be a list of strings: tags")
-        payload["tags"] = tags
+        payload["tags"] = ", ".join(tags)
 
     return payload
 
@@ -102,7 +135,7 @@ def request_json(method: str, url: str, api_key: str, payload: JsonObject) -> Js
         data=body,
         method=method,
         headers={
-            "Accept": "application/json",
+            "Accept": FOREM_API_ACCEPT,
             "Content-Type": "application/json",
             "api-key": api_key,
         },

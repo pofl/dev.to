@@ -66,7 +66,15 @@ DEVTO_API_KEY=... python3 scripts/devto_put_article.py architecture-vs-simplicit
 
 This requires an existing `devto_id`, reads the local Markdown body and metadata, and sends a `PUT` request to `https://dev.to/api/articles/<devto_id>`.
 
-All API scripts read the API key from `DEVTO_API_KEY` by default. Use `--api-key-env` or `--api-base-url` when a different environment variable or API host is needed.
+All API scripts read the API key from `DEVTO_API_KEY` by default. If the environment variable is not set, they also look for the same key in a gitignored `.env` file in the repository root:
+
+```sh
+DEVTO_API_KEY=...
+```
+
+Use `--api-key-env` or `--api-base-url` when a different environment variable or API host is needed.
+
+Requests use the Forem v1 media type in the `Accept` header and send the API key through the `api-key` header. Local `cover_image` metadata is translated to the v1 article request field `main_image`.
 
 ## Metadata approach
 
