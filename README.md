@@ -12,6 +12,7 @@ No publishing code, GitHub Action, or dev.to API client has been chosen yet.
 - Support creating new dev.to articles and updating existing ones.
 - Keep the design compatible with the current Forem/dev.to API while avoiding a design that depends on deprecated behavior.
 - Prefer simple repository formats and avoid unnecessary dependencies.
+- Make the same publishing operations available both locally and in CI.
 
 ## Proposed repository shape
 
@@ -23,11 +24,16 @@ articles/
       cover.png
 devto/
   articles.json
+scripts/
+  devto_scaffold.py
+  devto_create_draft.py
+  devto_put_article.py
 ```
 
 - `articles/**/article.md` contains only the article body.
 - `articles/**/assets/` contains images referenced by the article.
 - `devto/articles.json` stores article metadata, source paths, remote dev.to article IDs, and other sync state.
+- `scripts/*.py` contains small typed Python entrypoints for local and CI use.
 
 ## Metadata approach
 
@@ -84,6 +90,27 @@ Keep metadata in `devto/articles.json` and implement the sync tool as a small ad
 
 This gives up the convenience of colocated frontmatter, but it keeps the project simpler, avoids parsing Markdown metadata, and aligns better with explicit API payloads.
 
+## Tooling approach
+
+Implement the workflow as small Python scripts using only the Python standard library. Each script should do one job, accept explicit command-line arguments, read and write plain files, and print useful output for shell pipelines.
+
+Principles:
+
+- Use typed Python so the data shapes are clear even without third-party libraries.
+- Keep scripts independent and composable instead of building a large framework.
+- Use `argparse`, `json`, `pathlib`, `urllib.request`, and other standard-library modules.
+- Read the dev.to API key from an environment variable such as `DEVTO_API_KEY`.
+- Make CI call the same scripts that can be run locally.
+- Fail with non-zero exits and clear stderr messages when validation or API calls fail.
+
+Recommended scripts:
+
+- `scripts/devto_scaffold.py`: add a new local article entry and create its Markdown file.
+- `scripts/devto_create_draft.py`: create a draft article on dev.to for an existing local entry and store the returned `devto_id`.
+- `scripts/devto_put_article.py`: update an existing dev.to article from the local Markdown body and JSON metadata.
+
+This follows the Unix philosophy: simple tools, explicit inputs and outputs, and enough composition to support both local workflows and CI.
+
 ## Mapping Markdown files to dev.to articles
 
 The sync tool needs a stable identity that survives file moves and title changes. The JSON object key is that stable identity.
@@ -119,14 +146,43 @@ Path-only mapping is simpler, but it breaks down when files are renamed. Looking
 
 1. A pull request changes one or more `articles/**/*.md` files.
 2. After the PR is merged, a GitHub Action on `main` computes the changed Markdown files for the merge.
-3. For each changed file, the sync tool:
+3. For each changed file, the workflow invokes the same Python script used locally:
    - finds the matching entry in `devto/articles.json` by `source`,
    - reads the Markdown body,
    - validates required metadata from the JSON entry,
-   - creates the article if there is no remote ID,
-   - updates the article if a remote ID exists,
+   - creates the draft article if there is no remote ID,
+   - PUTs the article if a remote ID exists,
    - updates `devto/articles.json` if a new remote ID was created.
 4. The workflow fails loudly if metadata is invalid or a mapping is ambiguous.
+
+## Local use cases
+
+### Scaffold a new article
+
+Run the scaffold script with a stable article key. It should:
+
+1. create `articles/<key>/article.md`,
+2. add a matching entry to `devto/articles.json`,
+3. populate required metadata with safe draft defaults,
+4. refuse to overwrite an existing article key or file.
+
+### Create the draft online
+
+Run the create-draft script for an article key after local metadata exists. It should:
+
+1. read the article body and metadata,
+2. send a create request to dev.to with `published: false`,
+3. store the returned `devto_id` in `devto/articles.json`,
+4. refuse to create a second remote article if `devto_id` is already present.
+
+### PUT an article
+
+Run the PUT script for an article key when the local article should update dev.to. It should:
+
+1. require an existing `devto_id`,
+2. read the local body and metadata,
+3. send an update request to dev.to,
+4. leave `devto/articles.json` unchanged unless sync state needs to change.
 
 ## Open design questions
 
@@ -134,3 +190,4 @@ Path-only mapping is simpler, but it breaks down when files are renamed. Looking
 - Should the workflow commit `devto/articles.json` updates back to `main`, or should new article creation require a separate manual bootstrap step?
 - Should asset uploads be handled by the tool, or should image URLs point to raw GitHub-hosted files?
 - Should deleted Markdown files ever unpublish dev.to articles, or should remote deletion always be manual?
+- Should CI create missing draft articles automatically, or should remote creation be local/manual only?
