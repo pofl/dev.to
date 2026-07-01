@@ -54,7 +54,7 @@ def require_entry(metadata: Metadata, key: str) -> JsonObject:
 def require_api_key(env_name: str) -> str:
     api_key = os.environ.get(env_name)
     if not api_key:
-        fail(f"missing dev.to API key in ${env_name}")
+        fail("missing dev.to API key")
     return api_key
 
 
@@ -113,9 +113,9 @@ def request_json(method: str, url: str, api_key: str, payload: JsonObject) -> Js
         with urllib.request.urlopen(request) as response:
             response_body = response.read().decode("utf-8")
     except urllib.error.HTTPError as error:
-        fail(f"{method} {url} failed with HTTP {error.code}")
-    except urllib.error.URLError as error:
-        fail(f"{method} {url} failed: {error.reason}")
+        fail(f"dev.to API request failed with HTTP {error.code}")
+    except urllib.error.URLError:
+        fail("dev.to API request failed")
 
     if not response_body:
         return {}
@@ -123,10 +123,10 @@ def request_json(method: str, url: str, api_key: str, payload: JsonObject) -> Js
     try:
         data = json.loads(response_body)
     except json.JSONDecodeError as error:
-        fail(f"{method} {url} returned invalid JSON: {error}")
+        fail("dev.to API returned invalid JSON")
 
     if not isinstance(data, dict):
-        fail(f"{method} {url} returned JSON that is not an object")
+        fail("dev.to API returned JSON that is not an object")
     return data
 
 
