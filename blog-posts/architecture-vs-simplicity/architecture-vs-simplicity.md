@@ -127,11 +127,11 @@ emitting one event to the queue.
 ## Thoughts on the common approach
 
 What turns me off about the layer separation is the sheer amount of overhead and
-busywork that architecture creates.
+busywork which that architecture creates.
 
 ### Congrats on the layers but they are still tightly coupled
 
-Most of your methods in the business logic layer will be tailor-made for one
+Most of the methods in the business logic layer will be tailor-made for one
 specific API endpoint. If you reduce the API layer to the most minimal amount of
 IO serde and input validation and really put all business logic in the next
 layer, you by definition will expose at least one tight-coupled method from the
