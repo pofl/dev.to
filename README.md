@@ -25,6 +25,7 @@ devto/
 scripts/
   devto_common.py
   devto_scaffold.py
+  devto_import_articles.py
   devto_create_draft.py
   devto_put_article.py
 ```
@@ -49,6 +50,14 @@ python3 scripts/devto_scaffold.py architecture-vs-simplicity \
 ```
 
 This creates `articles/architecture-vs-simplicity/article.md` and adds a draft metadata entry to `devto/articles.json`. The script refuses to overwrite an existing article key or article file.
+
+### Import existing dev.to articles
+
+```sh
+DEVTO_API_KEY=... python3 scripts/devto_import_articles.py
+```
+
+This imports all authenticated user's dev.to articles into `articles/<slug>/article.md` and `devto/articles.json`. Existing local articles are skipped by default. Use `--id <devto_id>` to import one article, or `--force` to overwrite existing local files and metadata entries.
 
 ### Create a dev.to draft
 
@@ -147,6 +156,7 @@ Principles:
 Available scripts:
 
 - `scripts/devto_scaffold.py`: add a new local article entry and create its Markdown file.
+- `scripts/devto_import_articles.py`: import existing dev.to articles into local Markdown files and metadata.
 - `scripts/devto_create_draft.py`: create a draft article on dev.to for an existing local entry and store the returned `devto_id`.
 - `scripts/devto_put_article.py`: update an existing dev.to article from the local Markdown body and JSON metadata.
 
@@ -215,6 +225,15 @@ Run the create-draft script for an article key after local metadata exists. It s
 2. send a create request to dev.to with `published: false`,
 3. store the returned `devto_id` in `devto/articles.json`,
 4. refuse to create a second remote article if `devto_id` is already present.
+
+### Import existing articles
+
+Run the import script when dev.to already has articles that should become local repository entries. It should:
+
+1. import all authenticated user's articles by default,
+2. support importing one article with `--id`,
+3. use the remote article slug as the local key and folder name,
+4. skip existing local articles unless `--force` is set.
 
 ### PUT an article
 

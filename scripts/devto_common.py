@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, NoReturn
 
 JsonObject = dict[str, Any]
+JsonValue = JsonObject | list[Any]
 Metadata = dict[str, JsonObject]
 DOTENV_PATH = Path(".env")
 FOREM_API_ACCEPT = "application/vnd.forem.api-v1+json"
@@ -129,18 +130,21 @@ def build_article_payload(entry: JsonObject, body_markdown: str, *, published: b
     return payload
 
 
-def request_json(method: str, url: str, api_key: str, payload: JsonObject) -> JsonObject:
-    body = json.dumps(payload).encode("utf-8")
+def request_json_value(method: str, url: str, api_key: str, payload: JsonObject | None = None) -> JsonValue:
+    body = None if payload is None else json.dumps(payload).encode("utf-8")
+    headers = {
+        "Accept": FOREM_API_ACCEPT,
+        "User-Agent": USER_AGENT,
+        "api-key": api_key,
+    }
+    if body is not None:
+        headers["Content-Type"] = "application/json"
+
     request = urllib.request.Request(
         url,
         data=body,
         method=method,
-        headers={
-            "Accept": FOREM_API_ACCEPT,
-            "Content-Type": "application/json",
-            "User-Agent": USER_AGENT,
-            "api-key": api_key,
-        },
+        headers=headers,
     )
 
     try:
@@ -166,6 +170,13 @@ def request_json(method: str, url: str, api_key: str, payload: JsonObject) -> Js
     except json.JSONDecodeError as error:
         fail(f"{method} {url} returned invalid JSON: {error}")
 
+    if not isinstance(data, dict) and not isinstance(data, list):
+        fail(f"{method} {url} returned JSON that is not an object or array")
+    return data
+
+
+def request_json(method: str, url: str, api_key: str, payload: JsonObject | None = None) -> JsonObject:
+    data = request_json_value(method, url, api_key, payload)
     if not isinstance(data, dict):
         fail(f"{method} {url} returned JSON that is not an object")
     return data
