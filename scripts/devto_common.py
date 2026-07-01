@@ -113,8 +113,7 @@ def request_json(method: str, url: str, api_key: str, payload: JsonObject) -> Js
         with urllib.request.urlopen(request) as response:
             response_body = response.read().decode("utf-8")
     except urllib.error.HTTPError as error:
-        error_body = error.read().decode("utf-8", errors="replace")
-        fail(f"{method} {url} failed with HTTP {error.code}: {error_body}")
+        fail(f"{method} {url} failed with HTTP {error.code}")
     except urllib.error.URLError as error:
         fail(f"{method} {url} failed: {error.reason}")
 
