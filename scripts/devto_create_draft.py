@@ -1,4 +1,20 @@
 #!/usr/bin/env python3
+"""Create a dev.to draft for an existing local article entry.
+
+This script reads the article body and metadata from the repository, posts a
+new draft article to the dev.to API, and stores the returned devto_id in
+/devto/articles.json so the article can later be updated from the local source.
+
+Example:
+
+    DEVTO_API_KEY=... python3 scripts/devto_create_draft.py architecture-vs-simplicity \
+      --metadata devto/articles.json \
+      --api-base-url https://dev.to/api \
+      --api-key-env DEVTO_API_KEY
+
+The script requires a metadata entry for the given key and refuses to create a
+second remote article when a devto_id is already present.
+"""
 from __future__ import annotations
 
 import argparse

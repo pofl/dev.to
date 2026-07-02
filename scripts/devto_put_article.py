@@ -1,4 +1,20 @@
 #!/usr/bin/env python3
+"""Update an existing dev.to article from the local Markdown source.
+
+This script reads the article body from the repository and sends a PUT request
+for the existing remote article identified by the metadata entry's devto_id.
+It is intended for publishing updates from local Markdown changes back to dev.to.
+
+Example:
+
+    DEVTO_API_KEY=... python3 scripts/devto_put_article.py architecture-vs-simplicity \
+      --metadata devto/articles.json \
+      --api-base-url https://dev.to/api \
+      --api-key-env DEVTO_API_KEY
+
+The script requires that the metadata entry already has a devto_id, because it
+updates an existing remote article rather than creating a new one.
+"""
 from __future__ import annotations
 
 import argparse

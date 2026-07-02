@@ -39,67 +39,9 @@ scripts/
 - `devto/articles.json` stores article metadata, source paths, remote dev.to article IDs, and other sync state.
 - `scripts/*.py` contains small typed Python entrypoints for local and CI use.
 
-## Script usage
+## Script entry points
 
-The scripts use only the Python standard library and should be run from the repository root.
-
-### Scaffold a local article
-
-```sh
-python3 scripts/devto_scaffold.py architecture-vs-simplicity \
-  --title "Architecture vs simplicity" \
-  --description "A short summary for dev.to" \
-  --tag architecture \
-  --tag software
-```
-
-This creates `articles/architecture-vs-simplicity/article.md` and adds a draft metadata entry to `devto/articles.json`. The script refuses to overwrite an existing article key or article file.
-
-### Import existing dev.to articles
-
-```sh
-DEVTO_API_KEY=... python3 scripts/devto_import_articles.py
-```
-
-This imports all authenticated user's dev.to articles into `articles/<slug>/article.md` and `devto/articles.json`. Existing local articles are skipped by default. Use `--force` to overwrite existing local files and metadata entries.
-
-### Create a dev.to draft
-
-```sh
-DEVTO_API_KEY=... python3 scripts/devto_create_draft.py architecture-vs-simplicity
-```
-
-This reads the local Markdown body and metadata, posts a draft to `https://dev.to/api/articles`, and stores the returned `devto_id` in `devto/articles.json`. It refuses to create a second remote article when `devto_id` is already present.
-
-### Update an existing dev.to article
-
-```sh
-DEVTO_API_KEY=... python3 scripts/devto_put_article.py architecture-vs-simplicity
-```
-
-This requires an existing `devto_id`, reads the local Markdown body and metadata, and sends a `PUT` request to `https://dev.to/api/articles/<devto_id>`.
-
-### Sync changed articles
-
-```sh
-DEVTO_API_KEY=... python3 scripts/devto_sync_changed.py articles/foo/article.md articles/bar/article.md
-```
-
-For each file, the script looks up the matching entry in `devto/articles.json` by its `source` field. If the entry has a `devto_id`, it sends a `PUT` request to dev.to. Files without a matching metadata entry or without a `devto_id` are reported on stderr and skipped. This is the same script the GitHub Action calls automatically on push to `main`.
-
-### CI setup
-
-Add a `DEVTO_API_KEY` secret to the repository (Settings → Secrets and variables → Actions). The `sync` workflow reads this secret and calls `devto_sync_changed.py` for every `articles/**/*.md` file changed by the push.
-
-All API scripts read the API key from `DEVTO_API_KEY` by default. If the environment variable is not set, they also look for the same key in a gitignored `.env` file in the repository root:
-
-```sh
-DEVTO_API_KEY=...
-```
-
-Use `--api-key-env` or `--api-base-url` when a different environment variable or API host is needed.
-
-Requests use the Forem v1 media type in the `Accept` header and send the API key through the `api-key` header. Local `cover_image` metadata is translated to the v1 article request field `main_image`.
+The CLI entry points live under the scripts directory and include detailed usage notes and examples in their module header comments. Run a script with `--help` from the repository root to inspect its available options.
 
 ## Metadata approach
 
@@ -169,14 +111,6 @@ Principles:
 - Make CI call the same scripts that can be run locally.
 - Fail with non-zero exits and clear stderr messages when validation or API calls fail.
 
-Available scripts:
-
-- `scripts/devto_scaffold.py`: add a new local article entry and create its Markdown file.
-- `scripts/devto_import_articles.py`: import existing dev.to articles into local Markdown files and metadata.
-- `scripts/devto_create_draft.py`: create a draft article on dev.to for an existing local entry and store the returned `devto_id`.
-- `scripts/devto_put_article.py`: update an existing dev.to article from the local Markdown body and JSON metadata.
-- `scripts/devto_sync_changed.py`: sync a list of changed article files to dev.to; called by the GitHub Action and usable locally.
-
 This follows the Unix philosophy: simple tools, explicit inputs and outputs, and enough composition to support both local workflows and CI.
 
 ## Mapping Markdown files to dev.to articles
@@ -221,43 +155,6 @@ Path-only mapping is simpler, but it breaks down when files are renamed. Looking
    - PUTs the article if a `devto_id` exists,
    - skips the file with an error message if no `devto_id` is present (remote creation is a manual step).
 4. The workflow fails loudly if metadata is invalid or an API call fails.
-
-## Local use cases
-
-### Scaffold a new article
-
-Run the scaffold script with a stable article key. It should:
-
-1. create `articles/<key>/article.md`,
-2. add a matching entry to `devto/articles.json`,
-3. populate required metadata with safe draft defaults,
-4. refuse to overwrite an existing article key or file.
-
-### Create the draft online
-
-Run the create-draft script for an article key after local metadata exists. It should:
-
-1. read the article body and metadata,
-2. send a create request to dev.to with `published: false`,
-3. store the returned `devto_id` in `devto/articles.json`,
-4. refuse to create a second remote article if `devto_id` is already present.
-
-### Import existing articles
-
-Run the import script when dev.to already has articles that should become local repository entries. It should:
-
-1. import all authenticated user's articles by default,
-2. use the remote article slug as the local key and folder name,
-3. skip existing local articles unless `--force` is set.
-
-### PUT an article
-
-Run the PUT script for an article key when the local article should update dev.to. It should:
-
-1. require an existing `devto_id`,
-2. read the local body and metadata,
-3. send an update request to dev.to,
-4. leave `devto/articles.json` unchanged unless sync state needs to change.
 
 ## Open design questions
 

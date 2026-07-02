@@ -1,4 +1,26 @@
 #!/usr/bin/env python3
+"""Create a local article scaffold and metadata entry for the sync workflow.
+
+This script creates a new article directory at articles/<key>/article.md and adds a matching entry to
+/devto/articles.json with safe draft defaults.
+
+Example:
+
+    python3 scripts/devto_scaffold.py architecture-vs-simplicity \
+      --title "Architecture vs simplicity" \
+      --description "A short summary for dev.to" \
+      --tag architecture \
+      --tag software \
+      --metadata devto/articles.json \
+      --articles-dir articles \
+      --canonical-url https://example.com/architecture-vs-simplicity \
+      --cover-image https://example.com/cover.png \
+      --series "Software Design"
+
+The article key is a stable identifier that is used for future sync operations.
+The script refuses to overwrite an existing article key or article file so that
+accidental data loss is avoided.
+"""
 from __future__ import annotations
 
 import argparse
@@ -6,7 +28,6 @@ import re
 from pathlib import Path
 
 from devto_common import fail, load_metadata, save_metadata
-
 
 KEY_PATTERN = re.compile(r"[a-z0-9][a-z0-9-]*")
 

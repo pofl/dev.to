@@ -1,4 +1,24 @@
 #!/usr/bin/env python3
+"""Import existing dev.to articles into the local repository.
+
+This script fetches the authenticated user's articles from the dev.to API and
+stores each one as a local Markdown file under articles/<slug>/article.md with
+matching metadata in devto/articles.json.
+
+Example:
+
+    DEVTO_API_KEY=... python3 scripts/devto_import_articles.py \
+      --force \
+      --metadata devto/articles.json \
+      --articles-dir articles \
+      --api-base-url https://dev.to/api \
+      --api-key-env DEVTO_API_KEY \
+      --per-page 100
+
+Use --force to overwrite existing local article files and metadata entries.
+The default behavior skips articles that already exist locally so that imports
+can be repeated safely.
+"""
 from __future__ import annotations
 
 import argparse

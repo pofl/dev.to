@@ -1,12 +1,19 @@
 #!/usr/bin/env python3
 """Sync changed article files to dev.to.
 
-Usage:
-    DEVTO_API_KEY=... python3 scripts/devto_sync_changed.py articles/foo/article.md ...
+For each file passed on the command line, it looks up the matching metadata entry
+in devto/articles.json and uploads the article to dev.to when a devto_id is
+available.
 
-For each file that has a matching entry in devto/articles.json with a devto_id,
-PUTs the article to dev.to.  Files without a metadata entry or without a
-devto_id are reported and skipped.
+Example:
+
+    DEVTO_API_KEY=... python3 scripts/devto_sync_changed.py \
+      articles/foo/article.md articles/bar/article.md \
+      --metadata devto/articles.json \
+      --api-base-url https://dev.to/api \
+      --api-key-env DEVTO_API_KEY
+
+Files without a metadata entry or without a devto_id are reported and skippeds.
 """
 from __future__ import annotations
 
