@@ -24,6 +24,7 @@ import argparse
 from pathlib import Path
 
 from devto_common import (
+    DevtoError,
     article_path_from_dir,
     fail,
     validate_slug,
@@ -54,7 +55,7 @@ def main() -> None:
 
     article_path = article_path_from_dir(args.article_dir)
     if article_path.exists():
-        fail(f"article file already exists: {article_path}")
+        raise DevtoError(f"article file already exists: {article_path}")
 
     title = args.title or title_from_slug(slug)
     frontmatter = {
@@ -74,4 +75,7 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except DevtoError as error:
+        fail(str(error))

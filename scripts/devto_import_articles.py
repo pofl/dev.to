@@ -25,6 +25,7 @@ from typing import Any
 from urllib.parse import urlencode
 
 from devto_common import (
+    DevtoError,
     JsonObject,
     article_path_for_slug,
     fail,
@@ -48,7 +49,7 @@ def parse_args() -> argparse.Namespace:
 def require_string(article: JsonObject, field: str) -> str:
     value = article.get(field)
     if not isinstance(value, str) or not value:
-        fail(f"dev.to article is missing required string field: {field}")
+        raise DevtoError(f"dev.to article is missing required string field: {field}")
     return value
 
 
@@ -57,14 +58,14 @@ def optional_string(article: JsonObject, field: str) -> str | None:
     if value is None:
         return None
     if not isinstance(value, str):
-        fail(f"dev.to article field must be a string or null: {field}")
+        raise DevtoError(f"dev.to article field must be a string or null: {field}")
     return value
 
 
 def require_int(article: JsonObject, field: str) -> int:
     value = article.get(field)
     if not isinstance(value, int) or isinstance(value, bool):
-        fail(f"dev.to article is missing required integer field: {field}")
+        raise DevtoError(f"dev.to article is missing required integer field: {field}")
     return value
 
 
@@ -75,7 +76,7 @@ def normalize_tags(value: Any) -> str:
         return ", ".join(value)
     if isinstance(value, str):
         return ", ".join(tag.strip() for tag in value.split(",") if tag.strip())
-    fail("dev.to article field must be a list of strings or comma-separated string: tags")
+    raise DevtoError("dev.to article field must be a list of strings or comma-separated string: tags")
 
 
 def user_articles_endpoint(api_base_url: str, page: int, per_page: int) -> str:
@@ -89,13 +90,13 @@ def fetch_articles(api_base_url: str, api_key: str, per_page: int) -> list[JsonO
     while True:
         data = request_json_value("GET", user_articles_endpoint(api_base_url, page, per_page), api_key)
         if not isinstance(data, list):
-            fail("dev.to article list response was not an array")
+            raise DevtoError("dev.to article list response was not an array")
         if not data:
             return articles
 
         for item in data:
             if not isinstance(item, dict):
-                fail("dev.to article list response contained a non-object item")
+                raise DevtoError("dev.to article list response contained a non-object item")
             articles.append(item)
 
         if len(data) < per_page:
@@ -133,7 +134,7 @@ def import_article(article: JsonObject, articles_dir: Path, *, force: bool) -> s
 def main() -> None:
     args = parse_args()
     if args.per_page < 1 or args.per_page > 1000:
-        fail("--per-page must be between 1 and 1000")
+        raise DevtoError("--per-page must be between 1 and 1000")
 
     api_key = require_api_key(args.api_key_env)
     articles = fetch_articles(args.api_base_url, api_key, args.per_page)
@@ -151,4 +152,7 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except DevtoError as error:
+        fail(str(error))

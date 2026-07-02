@@ -20,9 +20,11 @@ import argparse
 from pathlib import Path
 
 from devto_common import (
+    DevtoError,
     article_endpoint,
     article_path_from_dir,
     build_article_payload,
+    fail,
     read_article_document,
     request_json,
     require_api_key,
@@ -54,4 +56,7 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except DevtoError as error:
+        fail(str(error))

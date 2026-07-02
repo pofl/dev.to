@@ -40,6 +40,10 @@ class ArticleDocument:
     body_markdown: str
 
 
+class DevtoError(Exception):
+    pass
+
+
 def fail(message: str) -> NoReturn:
     print(message, file=sys.stderr)
     raise SystemExit(1)
@@ -47,7 +51,7 @@ def fail(message: str) -> NoReturn:
 
 def validate_slug(slug: str) -> str:
     if not SLUG_PATTERN.fullmatch(slug):
-        fail("article slug must contain only lowercase letters, numbers, and hyphens")
+        raise DevtoError("article slug must contain only lowercase letters, numbers, and hyphens")
     return slug
 
 
@@ -82,7 +86,7 @@ def ordered_frontmatter(frontmatter: JsonObject) -> JsonObject:
 def split_frontmatter(path: Path, text: str) -> tuple[JsonObject, str]:
     lines = text.splitlines(keepends=True)
     if not lines or lines[0].strip() != FRONTMATTER_DELIMITER:
-        fail(f"{path}: expected JSON frontmatter starting with {FRONTMATTER_DELIMITER}")
+        raise DevtoError(f"{path}: expected JSON frontmatter starting with {FRONTMATTER_DELIMITER}")
 
     end_index = None
     for index, line in enumerate(lines[1:], start=1):
@@ -90,14 +94,14 @@ def split_frontmatter(path: Path, text: str) -> tuple[JsonObject, str]:
             end_index = index
             break
     if end_index is None:
-        fail(f"{path}: missing closing JSON frontmatter delimiter")
+        raise DevtoError(f"{path}: missing closing JSON frontmatter delimiter")
 
     try:
         frontmatter = json.loads("".join(lines[1:end_index]))
     except json.JSONDecodeError as error:
-        fail(f"{path}: invalid JSON frontmatter: {error}")
+        raise DevtoError(f"{path}: invalid JSON frontmatter: {error}") from error
     if not isinstance(frontmatter, dict):
-        fail(f"{path}: JSON frontmatter must be an object")
+        raise DevtoError(f"{path}: JSON frontmatter must be an object")
 
     return frontmatter, "".join(lines[end_index + 1 :])
 
@@ -110,9 +114,9 @@ def render_article_document(frontmatter: JsonObject, body_markdown: str) -> str:
 def read_article_document(path: Path) -> ArticleDocument:
     slug = slug_from_article_path(path)
     if slug is None:
-        fail(f"article path must end with <slug>/{ARTICLE_FILENAME}: {path}")
+        raise DevtoError(f"article path must end with <slug>/{ARTICLE_FILENAME}: {path}")
     if not path.is_file():
-        fail(f"article file does not exist: {path}")
+        raise DevtoError(f"article file does not exist: {path}")
 
     frontmatter, body_markdown = split_frontmatter(path, path.read_text(encoding="utf-8"))
     return ArticleDocument(path=path, slug=slug, frontmatter=frontmatter, body_markdown=body_markdown)
@@ -125,7 +129,7 @@ def write_article_document(path: Path, frontmatter: JsonObject, body_markdown: s
 
 def update_article_devto_id(document: ArticleDocument, devto_id: int) -> None:
     if not isinstance(devto_id, int) or isinstance(devto_id, bool):
-        fail("dev.to ID must be an integer")
+        raise DevtoError("dev.to ID must be an integer")
     document.frontmatter["devto_id"] = devto_id
     write_article_document(document.path, document.frontmatter, document.body_markdown)
 
@@ -146,7 +150,7 @@ def parse_dotenv(path: Path) -> dict[str, str]:
         key, separator, value = stripped.partition("=")
         key = key.strip()
         if not separator or not key:
-            fail(f"{path}:{line_number}: expected KEY=value")
+            raise DevtoError(f"{path}:{line_number}: expected KEY=value")
 
         values[key] = value.strip().strip('"\'')
 
@@ -158,7 +162,7 @@ def require_api_key(env_name: str) -> str:
     if not api_key:
         api_key = parse_dotenv(DOTENV_PATH).get(env_name)
     if not api_key:
-        fail(f"missing dev.to API key in ${env_name} or {DOTENV_PATH}")
+        raise DevtoError(f"missing dev.to API key in ${env_name} or {DOTENV_PATH}")
     return api_key
 
 
@@ -166,11 +170,11 @@ def build_article_payload(document: ArticleDocument, *, published: bool | None =
     frontmatter = document.frontmatter
     title = frontmatter.get("title")
     if not isinstance(title, str) or not title:
-        fail(f"{document.path}: JSON frontmatter is missing required string field: title")
+        raise DevtoError(f"{document.path}: JSON frontmatter is missing required string field: title")
 
     frontmatter_published = frontmatter.get("published", False)
     if not isinstance(frontmatter_published, bool):
-        fail(f"{document.path}: JSON frontmatter field must be a boolean: published")
+        raise DevtoError(f"{document.path}: JSON frontmatter field must be a boolean: published")
 
     payload: JsonObject = {
         "title": title,
@@ -182,19 +186,19 @@ def build_article_payload(document: ArticleDocument, *, published: bool | None =
         value = frontmatter.get(field)
         if value is not None:
             if not isinstance(value, str):
-                fail(f"{document.path}: JSON frontmatter field must be a string or null: {field}")
+                raise DevtoError(f"{document.path}: JSON frontmatter field must be a string or null: {field}")
             payload[field] = value
 
     tags = frontmatter.get("tags", "")
     if tags is not None:
         if not isinstance(tags, str):
-            fail(f"{document.path}: JSON frontmatter field must be a string or null: tags")
+            raise DevtoError(f"{document.path}: JSON frontmatter field must be a string or null: tags")
         payload["tags"] = tags
 
     organization_id = frontmatter.get("organization_id")
     if organization_id is not None:
         if not isinstance(organization_id, int) or isinstance(organization_id, bool):
-            fail(f"{document.path}: JSON frontmatter field must be an integer or null: organization_id")
+            raise DevtoError(f"{document.path}: JSON frontmatter field must be an integer or null: organization_id")
         payload["organization_id"] = organization_id
 
     return payload
@@ -228,9 +232,9 @@ def request_json_value(method: str, url: str, api_key: str, payload: JsonObject 
             message = f"{message}: {error_body}"
         else:
             message = f"{message} (empty response body)"
-        fail(message)
+        raise DevtoError(message) from error
     except urllib.error.URLError as error:
-        fail(f"{method} {url} failed: {error.reason}")
+        raise DevtoError(f"{method} {url} failed: {error.reason}") from error
 
     if not response_body:
         return {}
@@ -238,17 +242,17 @@ def request_json_value(method: str, url: str, api_key: str, payload: JsonObject 
     try:
         data = json.loads(response_body)
     except json.JSONDecodeError as error:
-        fail(f"{method} {url} returned invalid JSON: {error}")
+        raise DevtoError(f"{method} {url} returned invalid JSON: {error}") from error
 
     if not isinstance(data, dict) and not isinstance(data, list):
-        fail(f"{method} {url} returned JSON that is not an object or array")
+        raise DevtoError(f"{method} {url} returned JSON that is not an object or array")
     return data
 
 
 def request_json(method: str, url: str, api_key: str, payload: JsonObject | None = None) -> JsonObject:
     data = request_json_value(method, url, api_key, payload)
     if not isinstance(data, dict):
-        fail(f"{method} {url} returned JSON that is not an object")
+        raise DevtoError(f"{method} {url} returned JSON that is not an object")
     return data
 
 
@@ -262,5 +266,5 @@ def article_endpoint(api_base_url: str, article_id: int | None = None) -> str:
 def require_devto_id(document: ArticleDocument) -> int:
     devto_id = document.frontmatter.get("devto_id")
     if not isinstance(devto_id, int) or isinstance(devto_id, bool):
-        fail(f"{document.path}: JSON frontmatter is missing required integer field: devto_id")
+        raise DevtoError(f"{document.path}: JSON frontmatter is missing required integer field: devto_id")
     return devto_id

@@ -20,6 +20,7 @@ import argparse
 from pathlib import Path
 
 from devto_common import (
+    DevtoError,
     article_endpoint,
     article_path_from_dir,
     build_article_payload,
@@ -43,7 +44,7 @@ def main() -> None:
     args = parse_args()
     document = read_article_document(article_path_from_dir(args.article_dir))
     if document.frontmatter.get("devto_id") is not None:
-        fail(f"article already has a dev.to ID: {document.frontmatter['devto_id']}")
+        raise DevtoError(f"article already has a dev.to ID: {document.frontmatter['devto_id']}")
 
     api_key = require_api_key(args.api_key_env)
     response = request_json(
@@ -55,7 +56,7 @@ def main() -> None:
 
     devto_id = response.get("id")
     if not isinstance(devto_id, int) or isinstance(devto_id, bool):
-        fail("dev.to create response did not include an integer id")
+        raise DevtoError("dev.to create response did not include an integer id")
 
     update_article_devto_id(document, devto_id)
     print(f"created dev.to draft for {document.slug}: {devto_id}")
@@ -63,4 +64,7 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except DevtoError as error:
+        fail(str(error))
