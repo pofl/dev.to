@@ -3,21 +3,19 @@
 
 This script fetches the authenticated user's articles from the dev.to API and
 stores each one as a local Markdown file under articles/<slug>/article.md with
-matching metadata in devto/articles.json.
+JSON frontmatter.
 
 Example:
 
     DEVTO_API_KEY=... python3 scripts/devto_import_articles.py \
       --force \
-      --metadata devto/articles.json \
       --articles-dir articles \
       --api-base-url https://dev.to/api \
       --api-key-env DEVTO_API_KEY \
       --per-page 100
 
-Use --force to overwrite existing local article files and metadata entries.
-The default behavior skips articles that already exist locally so that imports
-can be repeated safely.
+Use --force to overwrite existing local article files. The default behavior
+skips articles that already exist locally so that imports can be repeated safely.
 """
 from __future__ import annotations
 
@@ -28,18 +26,18 @@ from urllib.parse import urlencode
 
 from devto_common import (
     JsonObject,
+    article_path_for_slug,
     fail,
-    load_metadata,
     request_json_value,
     require_api_key,
-    save_metadata,
+    validate_slug,
+    write_article_document,
 )
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Import existing dev.to articles into the local repository.")
-    parser.add_argument("--force", action="store_true", help="overwrite existing local article files and metadata")
-    parser.add_argument("--metadata", type=Path, default=Path("devto/articles.json"), help="metadata JSON path")
+    parser.add_argument("--force", action="store_true", help="overwrite existing local article files")
     parser.add_argument("--articles-dir", type=Path, default=Path("articles"), help="directory for article folders")
     parser.add_argument("--api-base-url", default="https://dev.to/api", help="dev.to API base URL")
     parser.add_argument("--api-key-env", default="DEVTO_API_KEY", help="environment variable containing the API key")
@@ -70,13 +68,13 @@ def require_int(article: JsonObject, field: str) -> int:
     return value
 
 
-def normalize_tags(value: Any) -> list[str]:
+def normalize_tags(value: Any) -> str:
     if value is None:
-        return []
+        return ""
     if isinstance(value, list) and all(isinstance(tag, str) for tag in value):
-        return value
+        return ", ".join(value)
     if isinstance(value, str):
-        return [tag.strip() for tag in value.split(",") if tag.strip()]
+        return ", ".join(tag.strip() for tag in value.split(",") if tag.strip())
     fail("dev.to article field must be a list of strings or comma-separated string: tags")
 
 
@@ -105,33 +103,30 @@ def fetch_articles(api_base_url: str, api_key: str, per_page: int) -> list[JsonO
         page += 1
 
 
-def build_metadata_entry(article: JsonObject, source: str) -> JsonObject:
+def build_frontmatter(article: JsonObject) -> JsonObject:
     return {
         "canonical_url": optional_string(article, "canonical_url"),
-        "cover_image": optional_string(article, "cover_image"),
         "description": optional_string(article, "description") or "",
         "devto_id": require_int(article, "id"),
+        "main_image": optional_string(article, "cover_image"),
         "published": article.get("published_at") is not None or article.get("published_timestamp") is not None,
         "series": optional_string(article, "series"),
-        "source": source,
         "tags": normalize_tags(article.get("tags")),
         "title": require_string(article, "title"),
     }
 
 
-def import_article(article: JsonObject, metadata: dict[str, JsonObject], articles_dir: Path, *, force: bool) -> str:
-    key = require_string(article, "slug")
+def import_article(article: JsonObject, articles_dir: Path, *, force: bool) -> str:
+    slug = validate_slug(require_string(article, "slug"))
     body_markdown = require_string(article, "body_markdown")
-    article_path = articles_dir / key / "article.md"
+    article_path = article_path_for_slug(slug, articles_dir)
 
-    if not force and (key in metadata or article_path.exists()):
-        print(f"skipped existing article: {key}")
+    if not force and article_path.exists():
+        print(f"skipped existing article: {slug}")
         return "skipped"
 
-    article_path.parent.mkdir(parents=True, exist_ok=True)
-    article_path.write_text(body_markdown, encoding="utf-8")
-    metadata[key] = build_metadata_entry(article, article_path.as_posix())
-    print(f"imported article: {key}")
+    write_article_document(article_path, build_frontmatter(article), body_markdown)
+    print(f"imported article: {slug}")
     return "imported"
 
 
@@ -141,20 +136,17 @@ def main() -> None:
         fail("--per-page must be between 1 and 1000")
 
     api_key = require_api_key(args.api_key_env)
-    metadata = load_metadata(args.metadata)
-
     articles = fetch_articles(args.api_base_url, api_key, args.per_page)
 
     imported = 0
     skipped = 0
     for article in articles:
-        result = import_article(article, metadata, args.articles_dir, force=args.force)
+        result = import_article(article, args.articles_dir, force=args.force)
         if result == "imported":
             imported += 1
         else:
             skipped += 1
 
-    save_metadata(args.metadata, metadata)
     print(f"import complete: {imported} imported, {skipped} skipped")
 
 

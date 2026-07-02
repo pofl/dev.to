@@ -14,33 +14,50 @@ This repository keeps dev.to articles in git and provides small Python scripts f
 
 ## Metadata approach
 
-Use a single JSON file for article metadata instead of Markdown frontmatter. This keeps the Markdown files clean, avoids adding a frontmatter parser dependency, and makes the sync format close to the explicit JSON payload expected by newer Forem/dev.to API endpoints.
+Each article lives at `articles/{slug}/article.md`. The `{slug}` directory name
+is the stable local identity for the article, replacing the old top-level key in
+the metadata file.
 
-Example article body:
+Article files start with strict JSON frontmatter delimited by `---` lines. The
+frontmatter stores the article attributes accepted by the Forem/dev.to article
+create and update endpoints, plus the local `devto_id` used to update an
+existing remote article. The Markdown after the closing delimiter is the article
+body and is sent as `body_markdown`.
+
+Example `articles/architecture-vs-simplicity/article.md`:
 
 ```markdown
+---
+{
+  "devto_id": 1234567,
+  "title": "Architecture vs simplicity",
+  "published": false,
+  "description": "A short summary for dev.to",
+  "tags": "architecture, software",
+  "canonical_url": null,
+  "main_image": null,
+  "series": null,
+  "organization_id": null
+}
+---
+
 Article body starts here.
 ```
 
-Example metadata in `devto/articles.json`:
+Supported frontmatter fields:
 
-```json
-{
-  "architecture-vs-simplicity": {
-    "devto_id": 1234567,
-    "source": "articles/architecture-vs-simplicity/article.md",
-    "title": "Architecture vs simplicity",
-    "published": false,
-    "description": "A short summary for dev.to",
-    "tags": ["architecture", "software"],
-    "canonical_url": null,
-    "cover_image": null,
-    "series": null
-  }
-}
-```
+- `devto_id`: remote dev.to article ID, or `null` before the draft is created.
+- `title`: article title.
+- `published`: whether the article should be published.
+- `description`: dev.to article description.
+- `tags`: comma-separated dev.to tag string.
+- `canonical_url`: canonical article URL, or `null`.
+- `main_image`: main image URL, or `null`.
+- `series`: dev.to series name, or `null`.
+- `organization_id`: optional dev.to organization ID, or `null`.
 
-The sync script reads the Markdown body from `source`, reads metadata from `devto/articles.json`, and translates both into the request body expected by the API.
+The scripts keep using only the Python standard library. The frontmatter is JSON,
+not YAML, so no frontmatter parser dependency is required.
 
 ## Tooling approach
 
@@ -50,11 +67,8 @@ scripts that can be run locally.
 
 ## Mapping Markdown files to dev.to articles
 
-The sync tool needs a stable identity that survives file moves and title changes. The JSON object key is that stable identity.
-
-Recommended mapping:
-
-1. Each article entry in `devto/articles.json` has a stable key such as `architecture-vs-simplicity`.
-2. The entry stores both `source` and `devto_id`.
-3. New articles have an entry with a `source` but no remote ID yet.
-4. After creating a new article through the API, the sync tool records the new remote ID in `devto/articles.json`.
+1. Each article is stored at `articles/{slug}/article.md`, such as `articles/architecture-vs-simplicity/article.md`.
+2. The slug must contain only lowercase letters, numbers, and hyphens.
+3. New articles have `devto_id` set to `null`.
+4. After creating a new article through the API, the draft script records the new remote ID in the article frontmatter.
+5. The sync script updates only changed `articles/{slug}/article.md` files that already have a `devto_id`.

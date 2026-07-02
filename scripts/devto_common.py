@@ -3,18 +3,41 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 import urllib.error
 import urllib.request
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, NoReturn
 
 JsonObject = dict[str, Any]
 JsonValue = JsonObject | list[Any]
-Metadata = dict[str, JsonObject]
 DOTENV_PATH = Path(".env")
 FOREM_API_ACCEPT = "application/vnd.forem.api-v1+json"
 USER_AGENT = "dev-to-markdown-sync/1.0"
+ARTICLE_FILENAME = "article.md"
+FRONTMATTER_DELIMITER = "---"
+SLUG_PATTERN = re.compile(r"[a-z0-9][a-z0-9-]*")
+FRONTMATTER_FIELD_ORDER = (
+    "devto_id",
+    "title",
+    "published",
+    "description",
+    "tags",
+    "canonical_url",
+    "main_image",
+    "series",
+    "organization_id",
+)
+
+
+@dataclass
+class ArticleDocument:
+    path: Path
+    slug: str
+    frontmatter: JsonObject
+    body_markdown: str
 
 
 def fail(message: str) -> NoReturn:
@@ -22,36 +45,90 @@ def fail(message: str) -> NoReturn:
     raise SystemExit(1)
 
 
-def load_metadata(path: Path) -> Metadata:
-    if not path.exists():
-        return {}
+def validate_slug(slug: str) -> str:
+    if not SLUG_PATTERN.fullmatch(slug):
+        fail("article slug must contain only lowercase letters, numbers, and hyphens")
+    return slug
+
+
+def article_path_for_slug(slug: str, articles_dir: Path = Path("articles")) -> Path:
+    return articles_dir / validate_slug(slug) / ARTICLE_FILENAME
+
+
+def slug_from_article_path(path: Path, articles_dir: Path = Path("articles")) -> str | None:
+    path_parts = Path(path).parts
+    articles_parts = articles_dir.parts
+    if len(path_parts) != len(articles_parts) + 2:
+        return None
+    if path_parts[: len(articles_parts)] != articles_parts:
+        return None
+    if path_parts[-1] != ARTICLE_FILENAME:
+        return None
+
+    slug = path_parts[-2]
+    return slug if SLUG_PATTERN.fullmatch(slug) else None
+
+
+def ordered_frontmatter(frontmatter: JsonObject) -> JsonObject:
+    ordered: JsonObject = {}
+    for field in FRONTMATTER_FIELD_ORDER:
+        if field in frontmatter:
+            ordered[field] = frontmatter[field]
+    for field in sorted(frontmatter):
+        if field not in ordered:
+            ordered[field] = frontmatter[field]
+    return ordered
+
+
+def split_frontmatter(path: Path, text: str) -> tuple[JsonObject, str]:
+    lines = text.splitlines(keepends=True)
+    if not lines or lines[0].strip() != FRONTMATTER_DELIMITER:
+        fail(f"{path}: expected JSON frontmatter starting with {FRONTMATTER_DELIMITER}")
+
+    end_index = None
+    for index, line in enumerate(lines[1:], start=1):
+        if line.strip() == FRONTMATTER_DELIMITER:
+            end_index = index
+            break
+    if end_index is None:
+        fail(f"{path}: missing closing JSON frontmatter delimiter")
 
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
+        frontmatter = json.loads("".join(lines[1:end_index]))
     except json.JSONDecodeError as error:
-        fail(f"{path}: invalid JSON: {error}")
+        fail(f"{path}: invalid JSON frontmatter: {error}")
+    if not isinstance(frontmatter, dict):
+        fail(f"{path}: JSON frontmatter must be an object")
 
-    if not isinstance(data, dict):
-        fail(f"{path}: expected a JSON object")
-
-    metadata: Metadata = {}
-    for key, value in data.items():
-        if not isinstance(key, str) or not isinstance(value, dict):
-            fail(f"{path}: expected object entries keyed by article key")
-        metadata[key] = value
-    return metadata
+    return frontmatter, "".join(lines[end_index + 1 :])
 
 
-def save_metadata(path: Path, metadata: Metadata) -> None:
+def render_article_document(frontmatter: JsonObject, body_markdown: str) -> str:
+    rendered_frontmatter = json.dumps(ordered_frontmatter(frontmatter), indent=2) + "\n"
+    return f"{FRONTMATTER_DELIMITER}\n{rendered_frontmatter}{FRONTMATTER_DELIMITER}\n{body_markdown}"
+
+
+def read_article_document(path: Path, articles_dir: Path = Path("articles")) -> ArticleDocument:
+    slug = slug_from_article_path(path, articles_dir)
+    if slug is None:
+        fail(f"article path must match {articles_dir.as_posix()}/<slug>/{ARTICLE_FILENAME}: {path}")
+    if not path.is_file():
+        fail(f"article file does not exist: {path}")
+
+    frontmatter, body_markdown = split_frontmatter(path, path.read_text(encoding="utf-8"))
+    return ArticleDocument(path=path, slug=slug, frontmatter=frontmatter, body_markdown=body_markdown)
+
+
+def write_article_document(path: Path, frontmatter: JsonObject, body_markdown: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(metadata, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    path.write_text(render_article_document(frontmatter, body_markdown), encoding="utf-8")
 
 
-def require_entry(metadata: Metadata, key: str) -> JsonObject:
-    entry = metadata.get(key)
-    if entry is None:
-        fail(f"unknown article key: {key}")
-    return entry
+def update_article_devto_id(document: ArticleDocument, devto_id: int) -> None:
+    if not isinstance(devto_id, int) or isinstance(devto_id, bool):
+        fail("dev.to ID must be an integer")
+    document.frontmatter["devto_id"] = devto_id
+    write_article_document(document.path, document.frontmatter, document.body_markdown)
 
 
 def parse_dotenv(path: Path) -> dict[str, str]:
@@ -86,46 +163,40 @@ def require_api_key(env_name: str) -> str:
     return api_key
 
 
-def read_article_body(entry: JsonObject, metadata_path: Path) -> str:
-    source = entry.get("source")
-    if not isinstance(source, str) or not source:
-        fail("metadata entry is missing required string field: source")
-
-    source_path = (metadata_path.parent.parent / source).resolve()
-    if not source_path.is_file():
-        fail(f"article source does not exist: {source}")
-    return source_path.read_text(encoding="utf-8")
-
-
-def build_article_payload(entry: JsonObject, body_markdown: str, *, published: bool | None = None) -> JsonObject:
-    title = entry.get("title")
+def build_article_payload(document: ArticleDocument, *, published: bool | None = None) -> JsonObject:
+    frontmatter = document.frontmatter
+    title = frontmatter.get("title")
     if not isinstance(title, str) or not title:
-        fail("metadata entry is missing required string field: title")
+        fail(f"{document.path}: JSON frontmatter is missing required string field: title")
+
+    frontmatter_published = frontmatter.get("published", False)
+    if not isinstance(frontmatter_published, bool):
+        fail(f"{document.path}: JSON frontmatter field must be a boolean: published")
 
     payload: JsonObject = {
         "title": title,
-        "body_markdown": body_markdown,
-        "published": bool(entry.get("published", False)) if published is None else published,
+        "body_markdown": document.body_markdown,
+        "published": frontmatter_published if published is None else published,
     }
 
-    for field in ("description", "canonical_url", "series"):
-        value = entry.get(field)
+    for field in ("description", "canonical_url", "main_image", "series"):
+        value = frontmatter.get(field)
         if value is not None:
             if not isinstance(value, str):
-                fail(f"metadata field must be a string or null: {field}")
+                fail(f"{document.path}: JSON frontmatter field must be a string or null: {field}")
             payload[field] = value
 
-    cover_image = entry.get("cover_image")
-    if cover_image is not None:
-        if not isinstance(cover_image, str):
-            fail("metadata field must be a string or null: cover_image")
-        payload["main_image"] = cover_image
-
-    tags = entry.get("tags", [])
+    tags = frontmatter.get("tags", "")
     if tags is not None:
-        if not isinstance(tags, list) or not all(isinstance(tag, str) for tag in tags):
-            fail("metadata field must be a list of strings: tags")
-        payload["tags"] = ", ".join(tags)
+        if not isinstance(tags, str):
+            fail(f"{document.path}: JSON frontmatter field must be a string or null: tags")
+        payload["tags"] = tags
+
+    organization_id = frontmatter.get("organization_id")
+    if organization_id is not None:
+        if not isinstance(organization_id, int) or isinstance(organization_id, bool):
+            fail(f"{document.path}: JSON frontmatter field must be an integer or null: organization_id")
+        payload["organization_id"] = organization_id
 
     return payload
 
@@ -189,8 +260,8 @@ def article_endpoint(api_base_url: str, article_id: int | None = None) -> str:
     return f"{base}/articles/{article_id}"
 
 
-def require_devto_id(entry: JsonObject) -> int:
-    devto_id = entry.get("devto_id")
+def require_devto_id(document: ArticleDocument) -> int:
+    devto_id = document.frontmatter.get("devto_id")
     if not isinstance(devto_id, int) or isinstance(devto_id, bool):
-        fail("metadata entry is missing required integer field: devto_id")
+        fail(f"{document.path}: JSON frontmatter is missing required integer field: devto_id")
     return devto_id
