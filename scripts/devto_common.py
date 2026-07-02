@@ -55,17 +55,16 @@ def article_path_for_slug(slug: str, articles_dir: Path = Path("articles")) -> P
     return articles_dir / validate_slug(slug) / ARTICLE_FILENAME
 
 
-def slug_from_article_path(path: Path, articles_dir: Path = Path("articles")) -> str | None:
-    path_parts = Path(path).parts
-    articles_parts = articles_dir.parts
-    if len(path_parts) != len(articles_parts) + 2:
-        return None
-    if path_parts[: len(articles_parts)] != articles_parts:
-        return None
-    if path_parts[-1] != ARTICLE_FILENAME:
+def article_path_from_dir(article_dir: Path) -> Path:
+    return Path(article_dir) / ARTICLE_FILENAME
+
+
+def slug_from_article_path(path: Path) -> str | None:
+    article_path = Path(path)
+    if article_path.name != ARTICLE_FILENAME:
         return None
 
-    slug = path_parts[-2]
+    slug = article_path.parent.name
     return slug if SLUG_PATTERN.fullmatch(slug) else None
 
 
@@ -108,10 +107,10 @@ def render_article_document(frontmatter: JsonObject, body_markdown: str) -> str:
     return f"{FRONTMATTER_DELIMITER}\n{rendered_frontmatter}{FRONTMATTER_DELIMITER}\n{body_markdown}"
 
 
-def read_article_document(path: Path, articles_dir: Path = Path("articles")) -> ArticleDocument:
-    slug = slug_from_article_path(path, articles_dir)
+def read_article_document(path: Path) -> ArticleDocument:
+    slug = slug_from_article_path(path)
     if slug is None:
-        fail(f"article path must match {articles_dir.as_posix()}/<slug>/{ARTICLE_FILENAME}: {path}")
+        fail(f"article path must end with <slug>/{ARTICLE_FILENAME}: {path}")
     if not path.is_file():
         fail(f"article file does not exist: {path}")
 

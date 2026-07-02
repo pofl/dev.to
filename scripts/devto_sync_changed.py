@@ -8,7 +8,6 @@ Example:
 
     DEVTO_API_KEY=... python3 scripts/devto_sync_changed.py \
       articles/foo/article.md articles/bar/article.md \
-      --articles-dir articles \
       --api-base-url https://dev.to/api \
       --api-key-env DEVTO_API_KEY
 
@@ -33,7 +32,6 @@ from devto_common import (
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Sync changed article files to dev.to.")
     parser.add_argument("files", nargs="+", help="changed article file paths (relative to repository root)")
-    parser.add_argument("--articles-dir", type=Path, default=Path("articles"), help="directory for article folders")
     parser.add_argument("--api-base-url", default="https://dev.to/api", help="dev.to API base URL")
     parser.add_argument("--api-key-env", default="DEVTO_API_KEY", help="environment variable containing the API key")
     return parser.parse_args()
@@ -47,7 +45,7 @@ def main() -> None:
 
     for file_path in args.files:
         path = Path(file_path)
-        slug = slug_from_article_path(path, args.articles_dir)
+        slug = slug_from_article_path(path)
         if slug is None:
             print(f"not an article file: {file_path}, skipping", file=sys.stderr)
             skipped += 1
@@ -57,10 +55,10 @@ def main() -> None:
             skipped += 1
             continue
 
-        document = read_article_document(path, args.articles_dir)
+        document = read_article_document(path)
         devto_id = document.frontmatter.get("devto_id")
         if not isinstance(devto_id, int) or isinstance(devto_id, bool):
-            print(f"{slug}: no devto_id, skipping (run devto_create_draft.py first)", file=sys.stderr)
+            print(f"{slug}: no devto_id, skipping (run devto_create_draft.py {path.parent} first)", file=sys.stderr)
             skipped += 1
             continue
 

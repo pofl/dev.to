@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 """Create a dev.to draft for an existing local article.
 
-This script reads an article from articles/<slug>/article.md, posts a new draft
+This script reads an article from an article directory, posts a new draft
 article to the dev.to API, and stores the returned devto_id in the file's JSON
 frontmatter so the article can later be updated from the local source.
 
 Example:
 
-    DEVTO_API_KEY=... python3 scripts/devto_create_draft.py architecture-vs-simplicity \
-      --articles-dir articles \
+        DEVTO_API_KEY=... python3 scripts/devto_create_draft.py articles/architecture-vs-simplicity \
       --api-base-url https://dev.to/api \
       --api-key-env DEVTO_API_KEY
 
@@ -22,7 +21,7 @@ from pathlib import Path
 
 from devto_common import (
     article_endpoint,
-    article_path_for_slug,
+    article_path_from_dir,
     build_article_payload,
     fail,
     read_article_document,
@@ -34,8 +33,7 @@ from devto_common import (
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Create a dev.to draft for a local article and store its dev.to ID.")
-    parser.add_argument("slug", help="stable article slug under articles/<slug>/article.md")
-    parser.add_argument("--articles-dir", type=Path, default=Path("articles"), help="directory for article folders")
+    parser.add_argument("article_dir", type=Path, help="article directory containing article.md")
     parser.add_argument("--api-base-url", default="https://dev.to/api", help="dev.to API base URL")
     parser.add_argument("--api-key-env", default="DEVTO_API_KEY", help="environment variable containing the API key")
     return parser.parse_args()
@@ -43,7 +41,7 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    document = read_article_document(article_path_for_slug(args.slug, args.articles_dir), args.articles_dir)
+    document = read_article_document(article_path_from_dir(args.article_dir))
     if document.frontmatter.get("devto_id") is not None:
         fail(f"article already has a dev.to ID: {document.frontmatter['devto_id']}")
 
