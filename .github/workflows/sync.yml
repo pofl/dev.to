@@ -1,0 +1,31 @@
+name: Sync articles to dev.to
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'articles/**/*.md'
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Sync changed articles
+        env:
+          DEVTO_API_KEY: ${{ secrets.DEVTO_API_KEY }}
+        run: |
+          mapfile -t changed < <(
+            git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" \
+              | grep '^articles/.*\.md$' || true
+          )
+          if [ ${#changed[@]} -eq 0 ]; then
+            echo "No article files changed."
+            exit 0
+          fi
+          echo "Changed article files: ${changed[*]}"
+          PYTHONPATH=scripts python3 scripts/devto_sync_changed.py "${changed[@]}"
