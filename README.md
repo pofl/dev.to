@@ -1,6 +1,6 @@
-# dev.to markdown publishing plan
+# dev.to markdown publishing
 
-This repository keeps dev.to articles in git and provides small Python scripts for creating local article files, creating dev.to drafts, and updating existing dev.to articles from Markdown.
+This repository keeps dev.to articles in git and provides small Python scripts for creating local article files, creating dev.to drafts, and updating existing dev.to articles from Markdown. A GitHub Action syncs changed articles to dev.to automatically on every push to `main`.
 
 ## Goals
 
@@ -12,9 +12,12 @@ This repository keeps dev.to articles in git and provides small Python scripts f
 - Prefer simple repository formats and avoid unnecessary dependencies.
 - Make the same publishing operations available both locally and in CI.
 
-## Proposed repository shape
+## Repository shape
 
 ```text
+.github/
+  workflows/
+    sync.yml
 articles/
   my-article/
     article.md
@@ -28,6 +31,7 @@ scripts/
   devto_import_articles.py
   devto_create_draft.py
   devto_put_article.py
+  devto_sync_changed.py
 ```
 
 - `articles/**/article.md` contains only the article body.
@@ -75,6 +79,18 @@ DEVTO_API_KEY=... python3 scripts/devto_put_article.py architecture-vs-simplicit
 
 This requires an existing `devto_id`, reads the local Markdown body and metadata, and sends a `PUT` request to `https://dev.to/api/articles/<devto_id>`.
 
+### Sync changed articles
+
+```sh
+DEVTO_API_KEY=... python3 scripts/devto_sync_changed.py articles/foo/article.md articles/bar/article.md
+```
+
+For each file, the script looks up the matching entry in `devto/articles.json` by its `source` field. If the entry has a `devto_id`, it sends a `PUT` request to dev.to. Files without a matching metadata entry or without a `devto_id` are reported on stderr and skipped. This is the same script the GitHub Action calls automatically on push to `main`.
+
+### CI setup
+
+Add a `DEVTO_API_KEY` secret to the repository (Settings → Secrets and variables → Actions). The `sync` workflow reads this secret and calls `devto_sync_changed.py` for every `articles/**/*.md` file changed by the push.
+
 All API scripts read the API key from `DEVTO_API_KEY` by default. If the environment variable is not set, they also look for the same key in a gitignored `.env` file in the repository root:
 
 ```sh
@@ -113,7 +129,7 @@ Example metadata in `devto/articles.json`:
 }
 ```
 
-The future sync tool should read the Markdown body from `source`, read metadata from `devto/articles.json`, and translate both into the request body expected by the selected API version.
+The sync script reads the Markdown body from `source`, reads metadata from `devto/articles.json`, and translates both into the request body expected by the API.
 
 ## API version tradeoff
 
@@ -132,13 +148,13 @@ The future sync tool should read the Markdown body from `source`, read metadata 
 
 ### Recommendation
 
-Keep metadata in `devto/articles.json` and implement the sync tool as a small adapter:
+Keep metadata in `devto/articles.json` and build the API payload directly from `devto/articles.json` plus the Markdown body:
 
 1. Load each changed article's body from the Markdown file referenced by `source`.
 2. Load that article's metadata from `devto/articles.json`.
-3. Keep API-version-specific behavior isolated behind a small client boundary.
+3. Keep API-version-specific behaviour isolated behind a small client boundary.
 
-This gives up the convenience of colocated frontmatter, but it keeps the project simpler, avoids parsing Markdown metadata, and aligns better with explicit API payloads.
+This gives up the convenience of colocated frontmatter, but keeps the project simpler, avoids parsing Markdown metadata, and aligns better with explicit API payloads.
 
 ## Tooling approach
 
@@ -159,6 +175,7 @@ Available scripts:
 - `scripts/devto_import_articles.py`: import existing dev.to articles into local Markdown files and metadata.
 - `scripts/devto_create_draft.py`: create a draft article on dev.to for an existing local entry and store the returned `devto_id`.
 - `scripts/devto_put_article.py`: update an existing dev.to article from the local Markdown body and JSON metadata.
+- `scripts/devto_sync_changed.py`: sync a list of changed article files to dev.to; called by the GitHub Action and usable locally.
 
 This follows the Unix philosophy: simple tools, explicit inputs and outputs, and enough composition to support both local workflows and CI.
 
@@ -196,15 +213,14 @@ Path-only mapping is simpler, but it breaks down when files are renamed. Looking
 ## Merge-to-main sync flow
 
 1. A pull request changes one or more `articles/**/*.md` files.
-2. After the PR is merged, a GitHub Action on `main` computes the changed Markdown files for the merge.
-3. For each changed file, the workflow invokes the same Python script used locally:
+2. After the PR is merged, the `sync` GitHub Action on `main` computes the changed Markdown files for the merge using `git diff`.
+3. For each changed file, `devto_sync_changed.py`:
    - finds the matching entry in `devto/articles.json` by `source`,
    - reads the Markdown body,
    - validates required metadata from the JSON entry,
-   - creates the draft article if there is no remote ID,
-   - PUTs the article if a remote ID exists,
-   - updates `devto/articles.json` if a new remote ID was created.
-4. The workflow fails loudly if metadata is invalid or a mapping is ambiguous.
+   - PUTs the article if a `devto_id` exists,
+   - skips the file with an error message if no `devto_id` is present (remote creation is a manual step).
+4. The workflow fails loudly if metadata is invalid or an API call fails.
 
 ## Local use cases
 
@@ -246,7 +262,5 @@ Run the PUT script for an article key when the local article should update dev.t
 ## Open design questions
 
 - Should new articles be created as drafts by default even when `published` is `true` in `devto/articles.json`?
-- Should the workflow commit `devto/articles.json` updates back to `main`, or should new article creation require a separate manual bootstrap step?
 - Should asset uploads be handled by the tool, or should image URLs point to raw GitHub-hosted files?
 - Should deleted Markdown files ever unpublish dev.to articles, or should remote deletion always be manual?
-- Should CI create missing draft articles automatically, or should remote creation be local/manual only?
