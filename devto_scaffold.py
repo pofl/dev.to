@@ -6,7 +6,7 @@ frontmatter and safe draft defaults.
 
 Example:
 
-        python3 scripts/devto_scaffold.py articles/architecture-vs-simplicity \
+        python3 devto_scaffold.py articles/architecture-vs-simplicity \
       --title "Architecture vs simplicity" \
       --description "A short summary for dev.to" \
       --tags "architecture, software" \

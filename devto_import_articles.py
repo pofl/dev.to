@@ -7,7 +7,7 @@ JSON frontmatter.
 
 Example:
 
-    DEVTO_API_KEY=... python3 scripts/devto_import_articles.py \
+    DEVTO_API_KEY=... python3 devto_import_articles.py \
       --force \
       --articles-dir articles \
       --api-base-url https://dev.to/api \

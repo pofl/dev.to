@@ -78,7 +78,7 @@ scripts that can be run locally.
 Create a new local article:
 
 ```sh
-python3 scripts/devto_scaffold.py articles/architecture-vs-simplicity \
+python3 devto_scaffold.py articles/architecture-vs-simplicity \
   --title "Architecture vs simplicity" \
   --description "A short summary for dev.to" \
   --tags "architecture, software"
@@ -87,19 +87,19 @@ python3 scripts/devto_scaffold.py articles/architecture-vs-simplicity \
 Create a remote draft and write the returned `devto_id` into frontmatter:
 
 ```sh
-DEVTO_API_KEY=... python3 scripts/devto_create_draft.py articles/architecture-vs-simplicity
+DEVTO_API_KEY=... python3 devto_create_draft.py articles/architecture-vs-simplicity
 ```
 
 Update an existing remote article from local Markdown:
 
 ```sh
-DEVTO_API_KEY=... python3 scripts/devto_sync_changed.py articles/architecture-vs-simplicity
+DEVTO_API_KEY=... python3 devto_put_articles.py articles/architecture-vs-simplicity
 ```
 
 Import existing dev.to articles into the default `articles` directory:
 
 ```sh
-DEVTO_API_KEY=... python3 scripts/devto_import_articles.py --per-page 100
+DEVTO_API_KEY=... python3 devto_import_articles.py --per-page 100
 ```
 
 Bulk import still accepts `--articles-dir` when importing into a different root directory. Per-article scripts do not need it because they receive the article directory directly.

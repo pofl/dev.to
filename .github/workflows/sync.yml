@@ -32,4 +32,4 @@ jobs:
           echo "Changed article files: ${changed[*]}"
           mapfile -t article_dirs < <(dirname "${changed[@]}" | sort -u)
           echo "Changed article directories: ${article_dirs[*]}"
-          PYTHONPATH=scripts python3 scripts/devto_sync_changed.py "${article_dirs[@]}"
+          python3 devto_put_articles.py "${article_dirs[@]}"

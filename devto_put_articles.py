@@ -6,7 +6,7 @@ to dev.to when a devto_id is available in JSON frontmatter.
 
 Example:
 
-    DEVTO_API_KEY=... python3 scripts/devto_sync_changed.py \
+    DEVTO_API_KEY=... python3 devto_put_articles.py \
       articles/foo articles/bar \
       --api-base-url https://dev.to/api \
       --api-key-env DEVTO_API_KEY
