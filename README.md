@@ -71,7 +71,7 @@ scripts that can be run locally.
 2. The slug must contain only lowercase letters, numbers, and hyphens.
 3. New articles have `devto_id` set to `null`.
 4. After creating a new article through the API, the draft script records the new remote ID in the article frontmatter.
-5. The sync script updates only changed `articles/{slug}/article.md` files that already have a `devto_id`.
+5. The sync script updates only changed `articles/{slug}` directories whose `article.md` files already have a `devto_id`.
 
 ## Local commands
 
@@ -93,7 +93,7 @@ DEVTO_API_KEY=... python3 scripts/devto_create_draft.py articles/architecture-vs
 Update an existing remote article from local Markdown:
 
 ```sh
-DEVTO_API_KEY=... python3 scripts/devto_put_article.py articles/architecture-vs-simplicity
+DEVTO_API_KEY=... python3 scripts/devto_sync_changed.py articles/architecture-vs-simplicity
 ```
 
 Import existing dev.to articles into the default `articles` directory:
