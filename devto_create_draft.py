@@ -7,7 +7,7 @@ frontmatter so the article can later be updated from the local source.
 
 Example:
 
-        DEVTO_API_KEY=... python3 devto_create_draft.py articles/architecture-vs-simplicity \
+    DEVTO_API_KEY=... python3 devto_create_draft.py articles/architecture-vs-simplicity \
       --api-base-url https://dev.to/api \
       --api-key-env DEVTO_API_KEY
 

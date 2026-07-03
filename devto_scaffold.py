@@ -6,12 +6,12 @@ frontmatter and safe draft defaults.
 
 Example:
 
-        python3 devto_scaffold.py articles/architecture-vs-simplicity \
+    python3 devto_scaffold.py articles/architecture-vs-simplicity \
       --title "Architecture vs simplicity" \
       --description "A short summary for dev.to" \
       --tags "architecture, software" \
-            --canonical-url https://example.com/architecture-vs-simplicity \
-            --main-image https://example.com/cover.png \
+      --canonical-url https://example.com/architecture-vs-simplicity \
+      --main-image https://example.com/cover.png \
       --series "Software Design"
 
 The article directory name is the stable slug used for future sync operations.
@@ -70,7 +70,7 @@ def main() -> None:
         "title": title,
     }
 
-    write_article_document(article_path, frontmatter, f"# {title}\n\n")
+    write_article_document(article_path, frontmatter, f"{title}\n\n")
     print(f"created {article_path}")
 
 
