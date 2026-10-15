@@ -11,8 +11,8 @@
   "organization_id": null
 }
 ---
-Image formats cheatsheet: JPEG, PNG, WebP, AVIF, HEIC, JXL
 
+Image formats cheatsheet: JPEG, PNG, WebP, AVIF, HEIC, JXL
 
 ## Comparison
 
@@ -29,12 +29,18 @@ Numbers are rough and content-dependent.
 
 ## When to use what
 
-- **JPEG**: safe default for photos, email, anything needing universal compatibility.
-- **PNG**: screenshots, UI, logos, pixel art, anything with sharp edges needing lossless + transparency.
+- **JPEG**: safe default for photos, email, anything needing universal
+  compatibility.
+- **PNG**: screenshots, UI, logos, pixel art, anything with sharp edges needing
+  lossless + transparency.
 - **WebP**: pragmatic web default; good savings, cheap to encode, wide support.
-- **AVIF**: best web delivery for photos at low bitrates, HDR. Pre-encode at build time because encoding is slow. Can look smooth and lose fine detail.
-- **HEIC**: camera capture on iPhones. Convert to JPEG/AVIF/WebP for sharing and web.
-- **JXL**: archival and master files, lossless JPEG recompression, high-quality photos, progressive decoding. Use it where you control the decoder; add a fallback on the web.
+- **AVIF**: best web delivery for photos at low bitrates, HDR. Pre-encode at
+  build time because encoding is slow. Can look smooth and lose fine detail.
+- **HEIC**: camera capture on iPhones. Convert to JPEG/AVIF/WebP for sharing and
+  web.
+- **JXL**: archival and master files, lossless JPEG recompression, high-quality
+  photos, progressive decoding. Use it where you control the decoder; add a
+  fallback on the web.
 
 ## TL;DR
 
