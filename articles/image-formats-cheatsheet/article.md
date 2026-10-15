@@ -2,7 +2,7 @@
 {
   "devto_id": 4858130,
   "title": "Image formats cheatsheet: JPEG, PNG, WebP, AVIF, HEIC, JXL",
-  "published": false,
+  "published": true,
   "description": "A quick comparison of JPEG, PNG, WebP, AVIF, HEIC and JPEG XL: compression, speed, licensing and when to use each.",
   "tags": "webdev, images, performance, cheatsheet",
   "canonical_url": null,
@@ -11,8 +11,6 @@
   "organization_id": null
 }
 ---
-
-Image formats cheatsheet: JPEG, PNG, WebP, AVIF, HEIC, JXL
 
 ## Comparison
 
