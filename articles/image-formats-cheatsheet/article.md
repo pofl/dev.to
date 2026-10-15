@@ -1,6 +1,6 @@
 ---
 {
-  "devto_id": null,
+  "devto_id": 4858130,
   "title": "Image formats cheatsheet: JPEG, PNG, WebP, AVIF, HEIC, JXL",
   "published": false,
   "description": "A quick comparison of JPEG, PNG, WebP, AVIF, HEIC and JPEG XL: compression, speed, licensing and when to use each.",
@@ -16,14 +16,14 @@ Image formats cheatsheet: JPEG, PNG, WebP, AVIF, HEIC, JXL
 
 ## Comparison
 
-| Format | Size vs JPEG (same quality) | Lossy / Lossless | Alpha / HDR / Anim | Encode | Decode | License / patents | Support |
-|---|---|---|---|---|---|---|---|
-| **JPEG** | baseline | Lossy (lossless rare) | No / No / No | Very fast | Very fast | Free, patents expired | Universal |
-| **PNG** | Much larger for photos | Lossless | Yes / No / APNG | Fast | Fast | Free, open | Universal |
-| **WebP** | ~25–35% smaller | Both | Yes / No / Yes | Medium | Fast | Free (BSD), Google | All modern browsers |
-| **AVIF** | ~40–55% smaller | Both (lossless is weak) | Yes / Yes / Yes | **Slow** | Medium | Royalty-free (AOMedia) | All modern browsers |
-| **HEIC** | ~40–50% smaller | Lossy (lossless possible) | Yes / Yes / Yes | Medium (HW on phones) | Medium (HW) | **Patent-encumbered (HEVC)**, royalties | Apple native, spotty elsewhere, nearly no browsers |
-| **JXL** | ~20–50% smaller; lossless JPEG recompression ~20% | Both (strong lossless) | Yes / Yes / Yes | Medium–fast | Fast | Royalty-free, open (BSD) | Safari, some others; Chrome dropped then re-added; patchy |
+| Format   | Size vs JPEG (same quality)                       | Lossy / Lossless          | Alpha / HDR / Anim | Encode                | Decode      | License / patents                       | Support                                                   |
+| -------- | ------------------------------------------------- | ------------------------- | ------------------ | --------------------- | ----------- | --------------------------------------- | --------------------------------------------------------- |
+| **JPEG** | baseline                                          | Lossy (lossless rare)     | No / No / No       | Very fast             | Very fast   | Free, patents expired                   | Universal                                                 |
+| **PNG**  | Much larger for photos                            | Lossless                  | Yes / No / APNG    | Fast                  | Fast        | Free, open                              | Universal                                                 |
+| **WebP** | ~25–35% smaller                                   | Both                      | Yes / No / Yes     | Medium                | Fast        | Free (BSD), Google                      | All modern browsers                                       |
+| **AVIF** | ~40–55% smaller                                   | Both (lossless is weak)   | Yes / Yes / Yes    | **Slow**              | Medium      | Royalty-free (AOMedia)                  | All modern browsers                                       |
+| **HEIC** | ~40–50% smaller                                   | Lossy (lossless possible) | Yes / Yes / Yes    | Medium (HW on phones) | Medium (HW) | **Patent-encumbered (HEVC)**, royalties | Apple native, spotty elsewhere, nearly no browsers        |
+| **JXL**  | ~20–50% smaller; lossless JPEG recompression ~20% | Both (strong lossless)    | Yes / Yes / Yes    | Medium–fast           | Fast        | Royalty-free, open (BSD)                | Safari, some others; Chrome dropped then re-added; patchy |
 
 Numbers are rough and content-dependent.
 
