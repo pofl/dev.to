@@ -14,20 +14,22 @@
 
 > **TL;DR**
 >
-> - Best compression: AVIF; 2nd best: JPEG XL
-> - Best lossless compression: JPEG XL; 2nd best: WebP
-> - Hold back on: JPEG XL
-> - Stop using: PNG, JPEG
+> - Best compression: AVIF; JPEG XL
+> - Best lossless compression: JPEG XL; WebP
+> - As of 2026-10, JPEG XL only supported by Chrome and Firefox, not Safari
+> - Stop using PNG, JPEG, because other formats just outperform them in every way
 
 ## Comparison
 
-| Format   | Size vs JPEG (same quality)                       | Lossy / Lossless          | Alpha / HDR / Anim | Encode                | Decode      | License / patents                       | Support                                                   |
-| -------- | ------------------------------------------------- | ------------------------- | ------------------ | --------------------- | ----------- | --------------------------------------- | --------------------------------------------------------- |
-| **JPEG** | baseline                                          | Lossy (lossless rare)     | No / No / No       | Very fast             | Very fast   | Free, patents expired                   | Universal                                                 |
-| **PNG**  | Much larger for photos                            | Lossless                  | Yes / No / APNG    | Fast                  | Fast        | Free, open                              | Universal                                                 |
-| **WebP** | ~25–35% smaller                                   | Both                      | Yes / No / Yes     | Medium                | Fast        | Free (BSD), Google                      | All modern browsers                                       |
-| **AVIF** | ~40–55% smaller                                   | Both (lossless is weak)   | Yes / Yes / Yes    | **Slow**              | Medium      | Royalty-free (AOMedia)                  | All modern browsers                                       |
-| **JXL**  | ~20–50% smaller; lossless JPEG recompression ~20% | Both (strong lossless)    | Yes / Yes / Yes    | Medium–fast           | Fast        | Royalty-free, open (BSD)                | Safari, some others; Chrome dropped then re-added; patchy |
+| Comparison field            | **JPEG**              | **PNG**                | **WebP**            | **AVIF**                | **JXL**                                                   |
+| --------------------------- | --------------------- | ---------------------- | ------------------- | ----------------------- | --------------------------------------------------------- |
+| Size vs JPEG (same quality) | baseline              | Much larger for photos | ~25–35% smaller     | ~40–55% smaller         | ~20–50% smaller; lossless JPEG recompression ~20%         |
+| Lossy / Lossless            | Lossy (lossless rare) | Lossless               | Both                | Both (lossless is weak) | Both (strong lossless)                                    |
+| Alpha / HDR / Anim          | No / No / No          | Yes / No / APNG        | Yes / No / Yes      | Yes / Yes / Yes         | Yes / Yes / Yes                                           |
+| Encode                      | baseline              | Fast                   | Medium              | **Slow**                | Medium–fast                                               |
+| Decode                      | baseline              | Fast                   | Fast                | Medium                  | Fast                                                      |
+| License / patents           | Free, patents expired | Free, open             | Free (BSD), Google  | Royalty-free (AOMedia)  | Royalty-free, open (BSD)                                  |
+| Support                     | Universal             | Universal              | All modern browsers | All modern browsers     | Safari, some others; Chrome dropped then re-added; patchy |
 
 Numbers are rough and content-dependent.
 
