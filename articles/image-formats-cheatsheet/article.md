@@ -14,8 +14,8 @@
 
 > **TL;DR**
 >
-> - Best compression: AVIF, 2nd best
-> - Best lossless compression: JPEG XL, 2nd best
+> - Best compression: AVIF; 2nd best: JPEG XL
+> - Best lossless compression: JPEG XL; 2nd best: WebP
 > - Hold back on: JPEG XL
 > - Stop using: PNG, JPEG
 
